@@ -1,7 +1,7 @@
 # watchmynetwork
 
-`watchmynetwork` is a lightweight, open-source network monitoring tool that continuously captures and parses live output from your operating system’s `ping` command.  
-Each ICMP response is converted into structured metrics—including latency, packet loss, TTL, ICMP type, and byte size—and stored into a PostgreSQL database at fixed intervals.  
+`wmn` is a lightweight, open-source network monitoring tool that continuously captures and parses live output from your operating system’s `ping` command.  
+Each ICMP response is converted into structured metrics, including latency, packet loss, TTL, ICMP type, and byte size , and stored into a PostgreSQL database at fixed intervals.  
 Dashboards and visualizations can then be built using Grafana or any analytics tool of your choice.
 
 ---
