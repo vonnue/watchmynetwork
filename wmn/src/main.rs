@@ -17,7 +17,7 @@ struct PingSample {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target_ip = "8.8.8.8".to_string();
-    let flush_interval = Duration::from_secs(2 * 60);
+    let flush_interval = Duration::from_secs(5 * 60);
 
     let mut client = Client::connect(
         "host=localhost user=pinguser password=pingpass123 dbname=wmn",
@@ -90,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if last_flush.elapsed() >= flush_interval && !buffer.is_empty() {
             println!("Flushing {} samples to DB...", buffer.len());
             if let Err(e) = flush_to_db(&mut client, &buffer) {
-                eprintln!("Error flushing to DB: {e}");
+                print_db_error(e);
             } else {
                 println!("Flush complete.");
                 buffer.clear();
@@ -102,11 +102,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !buffer.is_empty() {
         println!("Final flush of {} samples to DB...", buffer.len());
         if let Err(e) = flush_to_db(&mut client, &buffer) {
-            eprintln!("Error flushing to DB: {e}");
+            print_db_error(e);
         }
     }
 
     Ok(())
+}
+
+fn print_db_error(error: postgres::Error) {
+    if let Some(db_error) = error.as_db_error() {
+        eprintln!("     Message: {}", db_error.message());
+        eprintln!("     Detail: {:?}", db_error.detail());
+        eprintln!("     Hint: {:?}", db_error.hint());
+        eprintln!("     Position: {:?}", db_error.position());
+    }
 }
 
 fn flush_to_db(client: &mut Client, samples: &[PingSample]) -> Result<(), postgres::Error> {
@@ -117,7 +126,7 @@ fn flush_to_db(client: &mut Client, samples: &[PingSample]) -> Result<(), postgr
             "INSERT INTO ping_results
             (target_ip, response_time_ms, packet_loss,
              bytes_received, icmp_type, ttl, status)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+             VALUES ($1,$2,$3,$4,$5,$6,$7)",
             &[
                 &s.target_ip,
                 &s.response_time_ms,

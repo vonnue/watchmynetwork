@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: wmn-db
+    type: postgres
+    access: proxy
+    url: wmn_postgres:5432
+    database: wmn
+    user: pinguser
+    secureJsonData:
+      password: pingpass123
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+    isDefault: true
+    editable: true
