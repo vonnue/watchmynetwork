@@ -1,141 +1,239 @@
 # watchmynetwork
 
-`wmn` is a lightweight, open-source network monitoring tool that continuously captures and parses live output from your operating system’s `ping` command.  
-Each ICMP response is converted into structured metrics, including latency, packet loss, TTL, ICMP type, and byte size , and stored into a PostgreSQL database at fixed intervals.  
-Dashboards and visualizations can then be built using Grafana or any analytics tool of your choice.
+A lightweight, open-source network monitoring utility that periodically probes external endpoints using curl, captures comprehensive timing metrics, and stores results in PostgreSQL for analysis and visualization in Grafana.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## Features
+## Overview
 
-- Continuous real-time ping monitoring
-- Parses native OS ping output
-- Captures:
-  - Latency (ms)
-  - Packet loss events
-  - TTL value
-  - ICMP type
-  - Bytes received
-  - Status (OK / TIMEOUT)
-- Stores metrics in PostgreSQL
-- Ready-to-use Grafana setup with preconfigured datasource
-- Example Grafana dashboard included
-- Small binary footprint and minimal dependencies
+**watchmynetwork (wmn)** provides real-time network monitoring with sub-second granularity. It probes popular and reliable endpoints at 1-second intervals, capturing detailed performance metrics and storing them in a PostgreSQL database for historical analysis and SLA reporting.
+
+### Key Capabilities
+
+- **High-frequency probing** – Fixed 1-second cadence for precise monitoring
+- **Comprehensive metrics** – DNS, TCP, TLS, TTFB, and total response times via curl (native libcurl)
+- **Multi-endpoint support** – Monitor multiple sources simultaneously per probe cycle
+- **Time-series storage** – Direct PostgreSQL integration for efficient data persistence
+- **Production-ready** – Runs as a systemd service with automatic startup
+- **Grafana integration** – Pre-configured dashboards for visualization and alerting
+- **Minimal footprint** – Lightweight Rust binary with few dependencies
 
 ---
 
 ## Architecture
 
-1. `ping` runs as a subprocess
-2. Output is parsed line-by-line
-3. Parsed metrics are buffered
-4. Buffered samples are flushed to PostgreSQL every N minutes
-5. Grafana reads from PostgreSQL and renders dashboards
+```
+systemd
+   │
+   └─► wmn (Rust binary)
+        │
+        ├─► Scheduler (1 Hz, strict timing)
+        ├─► Fire-and-forget probe tasks
+        └─► curl subprocess (no keep-alive, enforced timeouts)
+            │
+            └─► PostgreSQL (time-series storage)
+                 │
+                 └─► Grafana (dashboards & SLA reports)
+```
+
+### How It Works
+
+- **Probe Groups**: Each scheduler tick generates a unique `probe_id`
+- **Multi-source Monitoring**: One row is recorded per `(probe_id, source)` combination
+- **Downtime Detection**: A probe is marked DOWN when all sources fail for the same `probe_id`
+- **SLA Metrics**: Uptime, downtime events, and packet loss are computed from probe group aggregations
 
 ---
 
-## Installation & Usage
+## Metrics Captured
 
-### 1. Start PostgreSQL and Grafana
+Each probe collects the following data points:
 
-The provided Docker Compose file spins up:
+| Metric         | Description                                |
+| -------------- | ------------------------------------------ |
+| `ts`           | Timestamp of the probe                     |
+| `source`       | Target endpoint URL                        |
+| `probe_id`     | Unique identifier for the probe cycle      |
+| `dns_ms`       | DNS resolution time (milliseconds)         |
+| `connect_ms`   | TCP connection establishment time          |
+| `tls_ms`       | TLS/SSL handshake time                     |
+| `ttfb_ms`      | Time to first byte                         |
+| `total_ms`     | Total request duration                     |
+| `status`       | HTTP status code returned                  |
+| `disconnected` | Boolean flag indicating connection failure |
 
-- PostgreSQL on `localhost:5432`
-- Grafana on `localhost:3000`
+---
 
-Run:
+## Quick Start
 
-```sh
+### Prerequisites
+
+- Docker and Docker Compose
+- Linux system with systemd support
+- `curl` installed on the host
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/vonnue/watchmynetwork.git
+cd watchmynetwork
+```
+
+### 2. Start PostgreSQL and Grafana
+
+Launch the backing services using Docker Compose:
+
+```bash
 docker compose up -d
 ```
 
 This initializes:
 
-- A ready-to-use PostgreSQL instance
-- A time-series table for storing ping metrics
-- A Grafana instance with a pre-wired datasource pointing to PostgreSQL
+- **PostgreSQL** on `localhost:5432` with the time-series schema pre-configured
+- **Grafana** on `localhost:3000` with datasource already connected
 
----
+### 3. Install the Monitoring Agent
 
-### 2. Run the watchmynetwork binary
+Run the installation script with sudo privileges:
 
-Start the collector by running the compiled binary (see releases).  
-It will begin streaming ping output, parsing each line, and buffering metrics until it flushes them to the database.
+```bash
+sudo ./install_wmn.sh
+```
 
----
+This will:
 
-### 3. Open Grafana
+- Install the `wmn` binary to `/usr/local/bin/`
+- Create and configure `wmn-agent.service`
+- Enable the service for automatic startup on boot
+- Start monitoring immediately
 
-Navigate to:
+### 4. Access Grafana
 
+Open your browser and navigate to:
+
+```
 http://localhost:3000
+```
 
-On first launch:
+**First-time setup:**
 
-- Set the admin password
-- Verify that the PostgreSQL datasource is already connected
-- Proceed to dashboard creation or import
+1. Set your admin password when prompted
+2. Verify the PostgreSQL datasource connection (pre-configured)
+3. Import the included dashboard or create your own
 
----
+### 5. Import the Dashboard
 
-### 4. Import or create dashboards
+Import the example dashboard for instant visualization:
 
-You can import the example dashboard available in the repository under grafana/dashboard.json.  
-Alternatively, create custom visualizations using the ping_results table as the data source.
-
-Fields available include:
-
-- timestamp
-- target_ip
-- response_time_ms
-- packet_loss
-- bytes_received
-- ttl
-- status
-
-These can be plotted as time series, histograms, gauges, or combined panels.
-
----
-
-## Database Schema
-
-The project stores parsed metrics into a table named ping_results, indexed for fast time-series querying and multi-host aggregation.
+1. In Grafana, go to **Dashboards** → **Import**
+2. Upload `grafana/dashboard-favicon.json` from the repository
 
 ---
 
 ## Configuration
 
-Configurations are not currently suported , the plan is to turn this into a proper CLI
+### Database Schema
 
-For now you can modify:
+The monitoring data is stored in the `favicon_metrics` table:
 
-- Target IP address
-- Flush interval
-- Database connection settings
-- Ping output parsing rules
+```sql
+CREATE TABLE favicon_metrics (
+    ts           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    probe_id     BIGINT NOT NULL,
+    source       TEXT NOT NULL,
+    dns_ms       DOUBLE PRECISION,
+    connect_ms   DOUBLE PRECISION,
+    tls_ms       DOUBLE PRECISION,
+    ttfb_ms      DOUBLE PRECISION,
+    total_ms     DOUBLE PRECISION,
+    status       INTEGER,
+    disconnected BOOLEAN NOT NULL,
+    PRIMARY KEY (probe_id, source)
+);
 
-These are defined in the Rust source and can be customized based on your environment.
+CREATE INDEX ON favicon_metrics (ts);
+CREATE INDEX ON favicon_metrics (source, ts);
+```
+
+### Current Behavior
+
+- **Redirects**: Enabled by default _(configurable option coming soon)_
+- **Connection pooling**: Disabled (no keep-alive)
+- **Probe interval**: Fixed at 1 second
+- **Timeout enforcement**: Handled by curl subprocess (1.5 seconds)
 
 ---
 
-## Example Use Cases
+## Management
 
-- Long-term latency tracking
-- Monitoring ISP stability
-- Packet loss detection
-- Server uptime and connectivity measurement
-- Feeding network metrics into alerting and automation systems
+### View Service Logs
+
+Monitor real-time logs from the wmn agent:
+
+```bash
+journalctl -u wmn-agent -f
+```
+
+### Service Management
+
+```bash
+# Check service status
+sudo systemctl status wmn-agent
+
+# Stop the service
+sudo systemctl stop wmn-agent
+
+# Restart the service
+sudo systemctl restart wmn-agent
+
+# Disable auto-start
+sudo systemctl disable wmn-agent
+```
+
+---
 
 ---
 
 ## Contributing
 
-Pull requests and issue reports are welcome.  
-Contributions that improve performance, add features, or enhance Grafana dashboards are appreciated.
+Contributions are welcome! We appreciate:
+
+- Performance optimizations
+- New feature implementations
+- Enhanced Grafana dashboards
+- Bug fixes and issue reports
+- Documentation improvements
+
+**To contribute:**
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## Roadmap
+
+- [ ] Configuration support
+- [ ] Support for additional protocols (ICMP, UDP)
+- [ ] Alerting capabilities
+- [ ] Prometheus exporter option
 
 ---
 
 ## License
 
-MIT License.  
-You are free to use, modify, and distribute this project.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+You are free to use, modify, and distribute this project for any purpose.
+
+---
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/vonnue/watchmynetwork/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/vonnue/watchmynetwork/discussions)
