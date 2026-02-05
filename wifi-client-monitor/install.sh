@@ -1,11 +1,25 @@
 #!/bin/bash
-sudo mkdir -p /usr/local/bin
-sudo cp wifi_monitor.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/wmn-wifi-client-monitor.sh
 
-sudo tee /etc/systemd/system/wmn-wifi-client-monitor.service << 'SERVICE'
+REPO_URL="https://github.com/vonnue/watchmynetwork/blob/2489e4938af7a84cf832fbf77936359515e540e4/wifi-client-monitor/wmn-wifi-client-monitor.sh"
+MONITOR_SCRIPT="wmn-wifi-client-monitor.sh"
+INSTALL_PATH="/usr/local/bin/$MONITOR_SCRIPT"
+
+echo "Installing WMN WiFi Client Monitor..."
+
+echo "Downloading monitoring script..."
+sudo curl -sSL "$REPO_URL/$MONITOR_SCRIPT" -o "$INSTALL_PATH"
+
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to download monitoring script"
+    exit 1
+fi
+
+sudo chmod +x "$INSTALL_PATH"
+
+echo "Creating systemd service..."
+sudo tee /etc/systemd/system/wmn-wifi-client-monitor.service > /dev/null << 'SERVICE'
 [Unit]
-Description=Wmn wifi client monitor
+Description=WMN WiFi Client Monitor
 After=network-online.target
 Wants=network-online.target
 
@@ -21,9 +35,13 @@ WantedBy=multi-user.target
 SERVICE
 
 sudo systemctl daemon-reload
-sudo systemctl enable wifi-monitor.service
-sudo systemctl start wifi-monitor.service
-echo "Installation complete. Check status with: sudo systemctl status wifi-monitor"
-EOF
+sudo systemctl enable wmn-wifi-client-monitor.service
+sudo systemctl start wmn-wifi-client-monitor.service
 
-chmod +x install_monitor.sh
+echo ""
+echo "✓ Installation complete!"
+echo ""
+echo "Check status with: sudo systemctl status wmn-wifi-client-monitor"
+echo "View logs with: sudo journalctl -u wmn-wifi-client-monitor -f"
+echo "Once the debugging is over disable service with: sudo systemctl disable wmn-wifi-client-monitor to prevent it from running on restart"
+echo "Once the debugging is over stop service with: sudo systemctl stop wmn-wifi-client-monitor"
