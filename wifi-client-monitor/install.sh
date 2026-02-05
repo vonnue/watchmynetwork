@@ -31,7 +31,7 @@ fi
 
 sudo systemctl daemon-reload
 echo "✓ Cleanup complete"
-echo "
+echo ""
 
 # Download the monitoring script
 echo "Downloading monitoring script..."
@@ -76,3 +76,4 @@ echo "Check status with: sudo systemctl status $SERVICE_NAME"
 echo "View logs with: sudo journalctl -u $SERVICE_NAME -f"
 echo "Once debugging is over, disable service with: sudo systemctl disable $SERVICE_NAME"
 echo "Once debugging is over, stop service with: sudo systemctl stop $SERVICE_NAME"
+
