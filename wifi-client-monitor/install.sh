@@ -2,9 +2,41 @@
 
 REPO_URL="https://raw.githubusercontent.com/vonnue/watchmynetwork/main/wifi-client-monitor/wmn-wifi-client-monitor.sh"
 INSTALL_PATH="/usr/local/bin/wmn-wifi-client-monitor.sh"
+SERVICE_NAME="wmn-wifi-client-monitor"
+SERVICE_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 
 echo "Installing WMN WiFi Client Monitor..."
 
+if systemctl is-active --quiet $SERVICE_NAME || [ -f "$SERVICE_PATH" ] || [ -f "$INSTALL_PATH" ]; then
+
+    echo "Existing installation found. Uninstalling..."
+
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        sudo systemctl stop $SERVICE_NAME
+        echo "✓ Service stopped"
+    fi
+
+    if systemctl is-enabled --quiet $SERVICE_NAME 2>/dev/null; then
+        sudo systemctl disable $SERVICE_NAME
+        echo "✓ Service disabled"
+    fi
+
+    if [ -f "$SERVICE_PATH" ]; then
+        sudo rm -f "$SERVICE_PATH"
+        echo "✓ Service file removed"
+    fi
+
+    if [ -f "$INSTALL_PATH" ]; then
+        sudo rm -f "$INSTALL_PATH"
+        echo "✓ Script removed"
+    fi
+    
+    sudo systemctl daemon-reload
+    echo "✓ Cleanup complete"
+    echo ""
+fi
+
+# Download the monitoring script
 echo "Downloading monitoring script..."
 sudo curl -sSL "$REPO_URL" -o "$INSTALL_PATH"
 
@@ -14,9 +46,11 @@ if [ $? -ne 0 ]; then
 fi
 
 sudo chmod +x "$INSTALL_PATH"
+echo "✓ Script downloaded and made executable"
 
+# Create systemd service
 echo "Creating systemd service..."
-sudo tee /etc/systemd/system/wmn-wifi-client-monitor.service > /dev/null << 'SERVICE'
+sudo tee "$SERVICE_PATH" > /dev/null << 'SERVICE'
 [Unit]
 Description=WMN WiFi Client Monitor
 After=network-online.target
@@ -33,14 +67,15 @@ User=root
 WantedBy=multi-user.target
 SERVICE
 
+# Reload systemd, enable and start service
 sudo systemctl daemon-reload
-sudo systemctl enable wmn-wifi-client-monitor.service
-sudo systemctl start wmn-wifi-client-monitor.service
+sudo systemctl enable $SERVICE_NAME
+sudo systemctl start $SERVICE_NAME
 
 echo ""
 echo "✓ Installation complete!"
 echo ""
-echo "Check status with: sudo systemctl status wmn-wifi-client-monitor"
-echo "View logs with: sudo journalctl -u wmn-wifi-client-monitor -f"
-echo "Once the debugging is over disable service with: sudo systemctl disable wmn-wifi-client-monitor to prevent it from running on restart"
-echo "Once the debugging is over stop service with: sudo systemctl stop wmn-wifi-client-monitor"
+echo "Check status with: sudo systemctl status $SERVICE_NAME"
+echo "View logs with: sudo journalctl -u $SERVICE_NAME -f"
+echo "Once debugging is over, disable service with: sudo systemctl disable $SERVICE_NAME"
+echo "Once debugging is over, stop service with: sudo systemctl stop $SERVICE_NAME"
