@@ -1,13 +1,12 @@
 #!/bin/bash
 
 REPO_URL="https://github.com/vonnue/watchmynetwork/blob/2489e4938af7a84cf832fbf77936359515e540e4/wifi-client-monitor/wmn-wifi-client-monitor.sh"
-MONITOR_SCRIPT="wmn-wifi-client-monitor.sh"
 INSTALL_PATH="/usr/local/bin/$MONITOR_SCRIPT"
 
 echo "Installing WMN WiFi Client Monitor..."
 
 echo "Downloading monitoring script..."
-sudo curl -sSL "$REPO_URL/$MONITOR_SCRIPT" -o "$INSTALL_PATH"
+sudo curl -sSL "$REPO_URL" -o "$INSTALL_PATH"
 
 if [ $? -ne 0 ]; then
     echo "Error: Failed to download monitoring script"
