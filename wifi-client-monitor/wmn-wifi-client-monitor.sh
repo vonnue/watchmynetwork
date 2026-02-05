@@ -4,7 +4,8 @@ INTERFACE="wlan0"
 PING_HOST="8.8.8.8"
 INTERVAL=10
 HOSTNAME=$(hostname)
-LOCAL_LOG="$HOME/.vonnue/network-monitor/wifi_${HOSTNAME}.log"
+LOG_DIR=/var/logs/vonnue/network-monitor
+LOCAL_LOG="$LOG_DIR/wifi_${HOSTNAME}.log"
 
 if ! ip link show $INTERFACE &>/dev/null; then
     INTERFACE=$(iw dev | grep Interface | awk '{print $2}' | head -1)
