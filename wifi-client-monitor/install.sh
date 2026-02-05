@@ -7,34 +7,31 @@ SERVICE_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 
 echo "Installing WMN WiFi Client Monitor..."
 
-if systemctl is-active --quiet $SERVICE_NAME || [ -f "$SERVICE_PATH" ] || [ -f "$INSTALL_PATH" ]; then
+echo "Cleaning up any existing installation..."
 
-    echo "Existing installation found. Uninstalling..."
-
-    if systemctl is-active --quiet $SERVICE_NAME; then
-        sudo systemctl stop $SERVICE_NAME
-        echo "✓ Service stopped"
-    fi
-
-    if systemctl is-enabled --quiet $SERVICE_NAME 2>/dev/null; then
-        sudo systemctl disable $SERVICE_NAME
-        echo "✓ Service disabled"
-    fi
-
-    if [ -f "$SERVICE_PATH" ]; then
-        sudo rm -f "$SERVICE_PATH"
-        echo "✓ Service file removed"
-    fi
-
-    if [ -f "$INSTALL_PATH" ]; then
-        sudo rm -f "$INSTALL_PATH"
-        echo "✓ Script removed"
-    fi
-    
-    sudo systemctl daemon-reload
-    echo "✓ Cleanup complete"
-    echo ""
+sudo systemctl stop $SERVICE_NAME 2>/dev/null
+if [ $? -eq 0 ]; then
+    echo "✓ Service stopped"
 fi
+
+sudo systemctl disable $SERVICE_NAME 2>/dev/null
+if [ $? -eq 0 ]; then
+    echo "✓ Service disabled"
+fi
+
+if [ -f "$SERVICE_PATH" ]; then
+    sudo rm -f "$SERVICE_PATH"
+    echo "✓ Service file removed"
+fi
+
+if [ -f "$INSTALL_PATH" ]; then
+    sudo rm -f "$INSTALL_PATH"
+    echo "✓ Script removed"
+fi
+
+sudo systemctl daemon-reload
+echo "✓ Cleanup complete"
+echo "
 
 # Download the monitoring script
 echo "Downloading monitoring script..."
