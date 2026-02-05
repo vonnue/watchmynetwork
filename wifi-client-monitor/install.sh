@@ -1,7 +1,7 @@
 #!/bin/bash
 
-REPO_URL="https://github.com/vonnue/watchmynetwork/blob/2489e4938af7a84cf832fbf77936359515e540e4/wifi-client-monitor/wmn-wifi-client-monitor.sh"
-INSTALL_PATH="/usr/local/bin/$MONITOR_SCRIPT"
+REPO_URL="https://raw.githubusercontent.com/vonnue/watchmynetwork/main/wifi-client-monitor/wmn-wifi-client-monitor.sh"
+INSTALL_PATH="/usr/local/bin/wmn-wifi-client-monitor.sh"
 
 echo "Installing WMN WiFi Client Monitor..."
 
