@@ -3,7 +3,7 @@
 INTERFACE="wlan0"
 PING_HOST="8.8.8.8"
 INTERVAL=10
-HOSTNAME=$(hostname)
+HOSTNAME=$(cat /etc/hostname)
 LOG_DIR=/var/logs/vonnue/network-monitor
 LOCAL_LOG="$LOG_DIR/wifi_${HOSTNAME}.log"
 
